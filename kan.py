@@ -102,14 +102,6 @@ class PSO_KAN_Layer:
         return C
 
     def forward(self, x: np.ndarray) -> np.ndarray:
-        """
-        Perform the layer forward pass.
-        
-        Parameters
-        ----------
-        x : ndarray of float
-            Shape=(num_particles, num_inputs).
-        """
         x = np.tanh(x)
         if self.basis == "chebyshev":
             C = self._evaluate_chebyshev(x)
@@ -120,14 +112,6 @@ class PSO_KAN_Layer:
             raise ValueError(f"unknown basis: {self.basis}")
 
     def _bspline_knots(self, num_ctrl_points, degree):
-        """
-        Clamped, uniform knot vector on [-1, 1].
-
-        Returns
-        -------
-        knots : ndarray of float
-            Shape=(num_ctrl_points + degree + 1,).
-        """
         num_knots = num_ctrl_points + degree + 1
         num_internal = num_knots - 2 * (degree + 1)
         if num_internal > 0:
@@ -141,20 +125,6 @@ class PSO_KAN_Layer:
         ])
 
     def _evaluate_bspline_basis(self, x, knots, degree, num_basis):
-        """
-        Cox-de Boor recursion. num_basis is small (== num_params), so a
-        Python loop over basis functions is simpler and cheap enough.
-
-        Parameters
-        ----------
-        x : ndarray of float
-            Any shape, values in [-1, 1].
-
-        Returns
-        -------
-        B : ndarray of float
-            Shape=x.shape + (num_basis,).
-        """
         num_knots = len(knots)
 
         # Degree 0: indicator functions over each knot span.
@@ -183,14 +153,6 @@ class PSO_KAN_Layer:
         return np.stack(N[:num_basis], axis=-1)
 
     def forward_bspline(self, x: np.ndarray) -> np.ndarray:
-        """
-        Layer forward pass using B-spline basis functions instead of Chebyshev.
-
-        Parameters
-        ----------
-        x : ndarray of float
-            Shape=(num_particles, num_inputs).
-        """
         knots = self._bspline_knots(self.num_params, self.degree)
         B = self._evaluate_bspline_basis(x, knots, self.degree, self.num_params)  # (p, i, num_params)
         y = np.einsum('pik,pijk->pj', B, self.params)

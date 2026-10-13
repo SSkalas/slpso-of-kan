@@ -62,6 +62,7 @@ class App:
         self.discrete = None
 
         self.loading_run = False
+        self.dynamic_colours = False
 
         self.run_loader = FileDialog(width=800, height=400, on_select=self.load_run)
         self.speed_slider = Slider(
@@ -129,6 +130,11 @@ class App:
     
     def set_sim_speed(self, value):
         self.sim_speed = value
+
+    def toggle_dynamic_colours(self, sender, app_data) -> None:
+        self.dynamic_colours = app_data
+        if not self.dynamic_colours and self.kan_plot is not None:
+            self.kan_plot.reset_colours()
     
     def resize(self, sender=None, app_data=None) -> None:
         width = dpg.get_viewport_client_width()
@@ -167,7 +173,13 @@ class App:
                 with dpg.menu(label="File"):
                     dpg.add_menu_item(label="Load Run...", callback=self.run_loader.show)
                 with dpg.menu(label="View"):
-                    dpg.add_menu_item(label="Fullscreen", shortcut="F11", callback=self.toggle_fullscreen)
+                    dpg.add_menu_item(label="Fullscreen", callback=self.toggle_fullscreen)
+                    dpg.add_menu_item(
+                        label="Dynamic Edge Colours",
+                        check=True,
+                        default_value=self.dynamic_colours,
+                        callback=self.toggle_dynamic_colours,
+                    )
                 with dpg.menu(label="Simulation"):
                     self.speed_slider.build(parent=dpg.last_container())
                 with dpg.menu(label="Split Size"):
@@ -239,8 +251,8 @@ class App:
 
         if now - self.last_step_time >= step_interval:
             obs = self.env_video.obs
-            self.kan_plot.update(obs)
-
+            if self.dynamic_colours:
+                self.kan_plot.update(obs)
             if self.discrete:
                 action = np.argmax(self.model.forward(self.env_video.obs[None, :])[0])
             else:
@@ -353,7 +365,7 @@ class StatsPlot(Component):
         self.width = width
         self.heigt = height
         self.xs = xs
-        self.ys = ys
+        self.ys = -ys
 
     def build(self, parent: str) -> None:
         with dpg.theme() as self.line_theme:
@@ -378,6 +390,10 @@ class KAN_Plot(Component):
         self.coeffs = coeffs
         self.edges: list[KAN_Edge] = []
 
+    def reset_colours(self) -> None:
+        for edge in self.edges:
+            edge.reset_activation()
+
     def build(self, parent: str) -> None:
         with dpg.theme() as self.square_theme:
             with dpg.theme_component(dpg.mvLineSeries):
@@ -388,8 +404,8 @@ class KAN_Plot(Component):
         self.edges_by_layer = []
         with dpg.plot(label=self.label, width=self.width, height=self.heigt, parent=parent, tag=self.tag("plot")):
 
-            self.xaxis = dpg.add_plot_axis(dpg.mvXAxis)
-            self.yaxis = dpg.add_plot_axis(dpg.mvYAxis)
+            self.xaxis = dpg.add_plot_axis(dpg.mvXAxis, no_gridlines=True, no_tick_labels=True, no_tick_marks=True)
+            self.yaxis = dpg.add_plot_axis(dpg.mvYAxis, no_gridlines=True, no_tick_labels=True, no_tick_marks=True)
 
             coords, func_coords = self.model.get_coords()
             x_data = [c[0] for c in coords.values()]
@@ -416,7 +432,7 @@ class KAN_Plot(Component):
                     label=text, default_value=(x, y),
                     offset=(15, 0),                     # pushes the text to the right
                     color=[255, 255, 255, 255], clamped=False,
-    )
+                )
 
             half_w = 0.025
             half_h = 1.25
@@ -448,6 +464,8 @@ class KAN_Plot(Component):
                         layer_edges.append(edge)
                 self.edges_by_layer.append(layer_edges)
 
+            self.global_range = max(e.range for e in self.edges)
+
     def update(self, obs) -> None:
         h = np.asarray(obs, dtype=np.float64)
         sizes = self.model.layer_sizes
@@ -458,11 +476,16 @@ class KAN_Plot(Component):
                 for b in range(n_out):
                     edge = edges[a * n_out + b]
                     y = edge.evaluate(x[a])
-                    #edge.set_activation(y)
+                    edge.set_activation(y, self.global_range)
                     out[b] += y
             h = out                  
 
 class KAN_Edge(Component):
+
+    BASE_COLOR = np.array([255, 255, 255], dtype=np.float64) # zero
+    POS_COLOR = np.array([255, 0, 0], dtype=np.float64) # positive
+    NEG_COLOR = np.array([0, 100, 255], dtype=np.float64) # negative
+
     def __init__(self, xa, ya, xb, yb , xf, yf, params, half_w=0.025, half_h=1.25):
         super().__init__(tag_prefix="edge")
         self.xa, self.ya = xa, ya
@@ -522,15 +545,19 @@ class KAN_Edge(Component):
         ys = self.cheby(np.linspace(-1, 1, 300))
         self.range = max(np.abs(ys).max(), 1e-8)
 
+
     def evaluate(self, x):
         return float(self.cheby(x))
 
-    def set_activation(self, y: float) -> None:
-        s = float(np.clip(y / self.range, -1, 1))      
-        base = np.array([255, 255, 255])
-        target = np.array([255, 0, 0]) 
-        rgb = base + (target - base) * abs(s)
-        dpg.set_value(self.edge_color, [*rgb.astype(int), 255])
+    def set_activation(self, y: float, scale: float | None = None) -> None:
+        scale = self.range if scale is None else scale
+        s = float(np.clip(y / max(scale, 1e-8), -1.0, 1.0))
+        target = self.POS_COLOR if s > 0 else self.NEG_COLOR
+        rgb = self.BASE_COLOR + (target - self.BASE_COLOR) * abs(s)
+        dpg.set_value(self.edge_color, [int(rgb[0]), int(rgb[1]), int(rgb[2]), 255])
+
+    def reset_activation(self) -> None:
+        dpg.set_value(self.edge_color, [*(int(c) for c in self.BASE_COLOR), 255])
     
     def compute_spline(self):
         cheby = np.polynomial.chebyshev.Chebyshev(self.params)
