@@ -1,0 +1,15 @@
+{
+  "env_name": "Pendulum-v1",
+  "discrete": false,
+  "architecture": {
+    "num_particles": 120,
+    "layer_sizes": [
+      3,
+      3,
+      1
+    ],
+    "num_params": 4,
+    "total_params": 48,
+    "basis": "chebyshev"
+  }
+}

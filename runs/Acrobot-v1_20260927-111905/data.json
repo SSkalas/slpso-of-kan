@@ -1,0 +1,15 @@
+{
+  "env_name": "Acrobot-v1",
+  "discrete": true,
+  "architecture": {
+    "num_particles": 120,
+    "layer_sizes": [
+      6,
+      3,
+      3
+    ],
+    "num_params": 4,
+    "total_params": 108,
+    "basis": "chebyshev"
+  }
+}

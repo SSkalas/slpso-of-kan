@@ -1,0 +1,15 @@
+{
+  "env_name": "LunarLander-v3",
+  "discrete": true,
+  "architecture": {
+    "num_particles": 120,
+    "layer_sizes": [
+      8,
+      4,
+      4
+    ],
+    "num_params": 4,
+    "total_params": 192,
+    "basis": "chebyshev"
+  }
+}

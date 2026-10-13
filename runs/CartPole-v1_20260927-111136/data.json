@@ -1,0 +1,14 @@
+{
+  "env_name": "CartPole-v1",
+  "discrete": true,
+  "architecture": {
+    "num_particles": 120,
+    "layer_sizes": [
+      4,
+      2
+    ],
+    "num_params": 4,
+    "total_params": 32,
+    "basis": "chebyshev"
+  }
+}

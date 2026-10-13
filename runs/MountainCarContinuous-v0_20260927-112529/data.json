@@ -1,0 +1,15 @@
+{
+  "env_name": "MountainCarContinuous-v0",
+  "discrete": false,
+  "architecture": {
+    "num_particles": 120,
+    "layer_sizes": [
+      2,
+      4,
+      1
+    ],
+    "num_params": 4,
+    "total_params": 48,
+    "basis": "chebyshev"
+  }
+}
