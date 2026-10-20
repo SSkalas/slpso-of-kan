@@ -32,18 +32,20 @@ class RL_Agent:
         self.pso.optimize(
             num_iterations=num_iterations,
             fitness_function=self.run_episodes,
-            #gamma=gamma,
-            #epsilon=epsilon
+            gamma=gamma,
+            epsilon=epsilon
         )
-        save_run(root="runs", agent=self)
+        run_dir = save_run(root="runs", agent=self)
+        self.env.close()
+        return run_dir
 
     def scale_obs_feature_wise(self, obs):
         return obs / self.obs_scale
 
-    def evaluate(self, path, num_eps):
+    def evaluate(self, path, seeds):
         data, arrays = load_run(path)
         architecture = data["architecture"]
-        eval_env = gym.make(data["env_name"], render_mode="None")
+        eval_env = gym.make(data["env_name"], render_mode=None)
         eval_kan = PSO_KAN(
             num_particles=1,
             layer_sizes=architecture["layer_sizes"],
@@ -54,8 +56,8 @@ class RL_Agent:
         position = arrays["best_position"]
         eval_kan.set_params(position[None, :])
         rewards = []
-        for _ in range(num_eps):
-            observation, info = eval_env.reset()
+        for seed in seeds:
+            observation, info = eval_env.reset(seed=seed)
             episode_over = False
             total_reward = 0.0
 
@@ -70,6 +72,7 @@ class RL_Agent:
                 episode_over = terminated or truncated
 
             rewards.append(-total_reward)
+        eval_env.close()
         return rewards
 
 

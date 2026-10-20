@@ -177,6 +177,8 @@ class SLPSO(PSO):
         ])
         learning_probs[-1] = 0.0
 
+        print(learning_probs)
+        
         pbar = tqdm(range(num_iterations), desc="SLPSO")
         for it in pbar:
             #Evaluate particles
@@ -192,7 +194,7 @@ class SLPSO(PSO):
             if self.fitness[-1] < self.best_fitness:
                 self.best_fitness = self.fitness[-1]
                 self.best_position = self.positions[-1].copy()
-                print(f"\nNew Best! {self.best_fitness}")
+                #print(f"\nNew Best! {self.best_fitness}")
 
 
             mean_position = self.positions.mean(axis=0)
