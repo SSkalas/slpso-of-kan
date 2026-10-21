@@ -93,7 +93,6 @@ class ParticleSwarmOptimizer(PSO):
             if self.p_best_fitness[best_index] < self.best_fitness:
                 self.best_position = self.p_best_positions[best_index].copy()
                 self.best_fitness = self.p_best_fitness[best_index]
-                print(f"New Best! {self.best_fitness}")
 
             # Update local best position and fitness
             _, l_best_position = self.get_local_best(num_neighbours=1)
@@ -177,8 +176,7 @@ class SLPSO(PSO):
         ])
         learning_probs[-1] = 0.0
 
-        print(learning_probs)
-        
+
         pbar = tqdm(range(num_iterations), desc="SLPSO")
         for it in pbar:
             #Evaluate particles

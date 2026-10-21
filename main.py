@@ -7,43 +7,43 @@ from agent import RL_Agent
 
 def main():
     results = []
-    BUDGET = 40_000
+    BUDGET = 50_000
     NUM_EPISODES = 5
-    PARTICLES = 80
+    PARTICLES = 50
     EVAL_SEEDS = range(1000000, 1000050)
-    GAMMAS = [0.001, 0.01, 0.05, 0.1, 0.2, 0.5]
-    for gamma in GAMMAS:
-        SEEDS = range(1)
-        for seed in SEEDS:
-            kan = PSO_KAN(
-                num_particles=PARTICLES,
-                num_params=4,
-                layer_sizes=[8, 4],
-                basis="chebyshev"
-            )
+    GAMMAS = 0.2
+    EPSILONS = 0.01
+    SEEDS = range(8)
+    for seed in SEEDS:
+        kan = PSO_KAN(
+            num_particles=PARTICLES,
+            num_params=4,
+            layer_sizes=[8, 4],
+            basis="chebyshev"
+        )
 
-            pso = SLPSO(
-                num_particles=PARTICLES,
-                x_min=[-1] * kan.total_params,
-                x_max=[1] * kan.total_params,
-                seed=seed
-            )
+        pso = SLPSO(
+            num_particles=PARTICLES,
+            x_min=[-1] * kan.total_params,
+            x_max=[1] * kan.total_params,
+            seed=seed
+        )
 
-            agent = RL_Agent(
-                env_name="LunarLander-v3",
-                num_envs=PARTICLES,
-                kan=kan,
-                pso=pso,
-                obs_scale=[1]*8,
-                discrete=True,
-                num_episodes=NUM_EPISODES,
-                seed=seed
-            )
-            run_dir = agent.train(num_iterations=BUDGET // NUM_EPISODES // PARTICLES, gamma=gamma, epsilon=0.01)
-            rewards = agent.evaluate(run_dir, EVAL_SEEDS)
-            print(f"{gamma} {seed} {np.mean(rewards):.2f} {np.std(rewards):.2f}")
-            results.append((gamma, seed, np.mean(rewards), np.std(rewards)))
-            np.savetxt("gamma_results.csv", results, delimiter=",", header="particles,seed,mean_cost,std_cost")
+        agent = RL_Agent(
+            env_name="LunarLander-v3",
+            num_envs=PARTICLES,
+            kan=kan,
+            pso=pso,
+            obs_scale=[1]*8,
+            discrete=True,
+            num_episodes=NUM_EPISODES,
+            seed=seed
+        )
+        run_dir = agent.train(num_iterations=BUDGET // NUM_EPISODES // PARTICLES, gamma=GAMMAS, epsilon=EPSILONS)
+        rewards = agent.evaluate(run_dir, EVAL_SEEDS)
+        print(f"SLPSO {seed} {np.mean(rewards):.2f} {np.std(rewards):.2f}")
+        results.append((seed, np.mean(rewards), np.std(rewards)))
+        np.savetxt("slpso_results.csv", results, delimiter=",", header="seed,mean,std")
 
     '''
     _, arrays_slpso = load_run("runs/LunarLander-v3_20261012-113203")
