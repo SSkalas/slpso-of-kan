@@ -84,7 +84,7 @@ class PSO_KAN_Layer:
                 shape=(self.num_particles, self.num_inputs, self.num_outputs, self.num_params)
             )
 
-    def _evaluate_chebyshev(self, x: np.ndarray) -> np.ndarray:
+    def evaluate_chebyshev(self, x: np.ndarray) -> np.ndarray:
         # C shape: (num_particles, num_inputs, degree + 1)
         C = np.zeros(x.shape + (self.degree + 1,))
         
@@ -104,59 +104,10 @@ class PSO_KAN_Layer:
     def forward(self, x: np.ndarray) -> np.ndarray:
         x = np.tanh(x)
         if self.basis == "chebyshev":
-            C = self._evaluate_chebyshev(x)
+            C = self.evaluate_chebyshev(x)
             return np.einsum('pik,pijk->pj', C, self.params)
-        elif self.basis == "bspline":
-            return self.forward_bspline(x)
         else:
             raise ValueError(f"unknown basis: {self.basis}")
-
-    def _bspline_knots(self, num_ctrl_points, degree):
-        num_knots = num_ctrl_points + degree + 1
-        num_internal = num_knots - 2 * (degree + 1)
-        if num_internal > 0:
-            internal = np.linspace(-1, 1, num_internal + 2)[1:-1]
-        else:
-            internal = np.array([])
-        return np.concatenate([
-            np.full(degree + 1, -1.0),
-            internal,
-            np.full(degree + 1, 1.0),
-        ])
-
-    def _evaluate_bspline_basis(self, x, knots, degree, num_basis):
-        num_knots = len(knots)
-
-        # Degree 0: indicator functions over each knot span.
-        N = []
-        for i in range(num_knots - 1):
-            left, right = knots[i], knots[i + 1]
-            if i == num_knots - 2:  # last span includes the right edge (x == 1.0)
-                Ni = ((x >= left) & (x <= right)).astype(np.float64)
-            else:
-                Ni = ((x >= left) & (x < right)).astype(np.float64)
-            N.append(Ni)
-
-        # Recurrence up to the target degree.
-        for d in range(1, degree + 1):
-            new_N = []
-            for i in range(len(N) - 1):
-                denom1 = knots[i + d] - knots[i]
-                term1 = (x - knots[i]) / denom1 * N[i] if denom1 != 0 else np.zeros_like(x)
-
-                denom2 = knots[i + d + 1] - knots[i + 1]
-                term2 = (knots[i + d + 1] - x) / denom2 * N[i + 1] if denom2 != 0 else np.zeros_like(x)
-
-                new_N.append(term1 + term2)
-            N = new_N
-
-        return np.stack(N[:num_basis], axis=-1)
-
-    def forward_bspline(self, x: np.ndarray) -> np.ndarray:
-        knots = self._bspline_knots(self.num_params, self.degree)
-        B = self._evaluate_bspline_basis(x, knots, self.degree, self.num_params)  # (p, i, num_params)
-        y = np.einsum('pik,pijk->pj', B, self.params)
-        return y
 
     
     def __repr__(self):

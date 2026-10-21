@@ -1,8 +1,6 @@
 import os
-os.environ["MUJOCO_GL"] = "egl"
 import numpy as np
 import gymnasium as gym
-import flappy_bird_gymnasium
 from kan import PSO_KAN
 from pso import SLPSO
 from file_io import save_run, load_run
@@ -74,8 +72,6 @@ class RL_Agent:
             rewards.append(-total_reward)
         eval_env.close()
         return rewards
-
-
 
 
     def display(self, path):
